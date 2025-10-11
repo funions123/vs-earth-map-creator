@@ -52,7 +52,11 @@ if [[ $(echo "$FINAL_RES < 0.25" | bc -l) -eq 1 ]]; then
 	export vertical_terrain_multiplier_decimalprecision=$(printf "%.0f" $vertical_terrain_multiplier_decimalprecision)
 fi
 
-cp $SCRIPTS/config_map.sh $WORK_DIR/.
+if [[ $earthtomc_gui_launch -eq 1 ]]; then
+  cp $SCRIPTS/config_map_guigenerated.sh $WORK_DIR/.
+else
+  cp $SCRIPTS/config_map.sh $WORK_DIR/.
+fi
 
 if [[ ! -f $WORK_DIR/dummy.tif ]] || [[ ! -f $WORK_DIR/dummy_int16.tif ]]; then
   log "Processing dummy tiff files to be used later in the generation"
@@ -70,8 +74,8 @@ LAT_MIN_FINAL_4326=$(echo $info4326 | cut -d " " -f 4)
 LON_MAX_FINAL_4326=$(echo $info4326 | cut -d " " -f 5)
 
 # START
-source $SCRIPTS/land.sh
 source $SCRIPTS/topography.sh
+source $SCRIPTS/land.sh
 source $SCRIPTS/climate.sh
 source $SCRIPTS/tree.sh
 source $SCRIPTS/translate.sh
