@@ -58,19 +58,45 @@ log "Processing rivers"
 osmconvert $OSM_DIR/ne_10m_rivers_lake_centerlines.osm --drop-author -b=$OSM_LON_MIN,$OSM_LAT_MIN,$OSM_LON_MAX,$OSM_LAT_MAX -o=crop_rivers.osm
 waterways_drop="intermittent=yes"
 
-#major_river_names=$(awk 'NF && !/^#/ {sub(/ \(.*$/, ""); print}' $MAIN_DIR/config/$major_rivers_file | awk '!seen[$0]++' | awk '{gsub(/ /, "\\ "); printf "name=%s or ", $0}' | sed 's/ or $//')
-#major_waterways_filter=$(awk '{print "name=" $0}' $MAIN_DIR/config/$major_rivers_file | paste -s -d '|' | sed 's/|/ or /g')
-major_waterways_filter=$(awk '{gsub(/ /, "\\ "); print "name=" $0}' $MAIN_DIR/config/$major_rivers_file | paste -s -d '|' | sed 's/|/ or /g')
-echo "Major waterways filter: $major_waterways_filter"
+# --- DIAGNOSTIC 1: Check if the source file has river data ---
+way_count=$(grep -c "<way" $OSM_DIR/crop_rivers.osm)
+log "DIAGNOSTIC: The unfiltered crop_rivers.osm file contains $way_count river/way features."
 
-cp $WORK_DIR/dummy.tif $WORK_DIR/rivers.tif
-
+# --- Step 1: Define river_width ---
+log "Calculating river width..."
 river_width=$(echo "$major_river_width/$FINAL_RES" | bc -l)
 
-osmfilter crop_rivers.osm --keep="$major_waterways_filter" -o=$OSM_DIR/crop_rivers_filtered.osm 
+# --- DIAGNOSTIC 2: Check the generated SQL filter string ---
+log "DIAGNOSTIC: The generated SQL river list is:"
+echo "$river_list"
+if [[ -z "$river_list" ]]; then
+    log "DIAGNOSTIC: WARNING! The river list is empty. Check your major_rivers.txt file."
+fi
 
-ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX -dialect SQLite -sql "SELECT ST_Buffer(geometry,$river_width) FROM lines" -f GPKG $WORK_DIR/crop_rivers.gpkg $OSM_DIR/crop_rivers_filtered.osm
+# --- Step 2: Build the SQL filter list ---
+log "Building SQL filter for major rivers..."
+river_list=$(awk '{printf "\047%s\047,", $0}' $MAIN_DIR/config/major_rivers.txt | sed 's/,$//')
 
+# --- DIAGNOSTIC 3: List all river names found in the source data ---
+log "DIAGNOSTIC: Listing all available river names from source file (for comparison):"
+ogrinfo -ro -al -sql "SELECT name FROM lines" $OSM_DIR/crop_rivers.osm | grep "name (String)" | sort | uniq
+log "------------------------------------------------------------------"
+
+# --- Step 3: Filter and expand rivers in a single command ---
+log "Filtering and expanding rivers using ogr2ogr..."
+ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX \
+    -dialect SQLite \
+    -sql "SELECT ST_Buffer(geometry, $river_width) FROM lines WHERE name IN ($river_list)" \
+    -f GPKG $WORK_DIR/crop_rivers.gpkg $OSM_DIR/crop_rivers.osm
+	
+# --- DIAGNOSTIC 4: Check if the filtering produced any results ---
+log "DIAGNOSTIC: Checking the contents of the final GeoPackage before rasterizing..."
+ogrinfo -so -al $WORK_DIR/crop_rivers.gpkg
+log "------------------------------------------------------------------"
+
+# --- Step 4: Rasterize the result ---
+log "Rasterizing rivers to the final mask..."
+cp $WORK_DIR/dummy.tif $WORK_DIR/rivers.tif
 gdal_rasterize -l SELECT -at -burn 255 $WORK_DIR/crop_rivers.gpkg $WORK_DIR/rivers.tif
 
 log "Done with rivers"
@@ -82,8 +108,6 @@ unzip ne_10m_lakes.zip
 
 log "Processing lakes"
 ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX -f GPKG $WORK_DIR/crop_lakes.gpkg $OSM_DIR/ne_10m_lakes.shp ne_10m_lakes
-
-gdal_rasterize -l ne_10m_lakes -burn 255 $WORK_DIR/crop_lakes.gpkg $WORK_DIR/rivers.tif
 
 log "Done with lakes"
 log "DONE processing osm data"

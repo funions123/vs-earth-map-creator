@@ -70,9 +70,8 @@ LAT_MIN_FINAL_4326=$(echo $info4326 | cut -d " " -f 4)
 LON_MAX_FINAL_4326=$(echo $info4326 | cut -d " " -f 5)
 
 # START
-source $SCRIPTS/topography.sh
-source $SCRIPTS/bathymetry.sh
 source $SCRIPTS/land.sh
+source $SCRIPTS/topography.sh
 source $SCRIPTS/climate.sh
 source $SCRIPTS/tree.sh
 source $SCRIPTS/translate.sh
