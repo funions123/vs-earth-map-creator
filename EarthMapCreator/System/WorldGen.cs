@@ -1,15 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using HarmonyLib;
-using Vintagestory.API.Client;
 using Vintagestory.API.Common;
-using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.ServerMods;
-using Vintagestory.ServerMods.NoObf;
 
 namespace EarthMapCreator;
 
@@ -147,9 +142,21 @@ public class EarthWorldGenerator : ModSystem
         IntDataMap2D terrain = EarthMapCreator.Layers.HeightMap.IntValues[regionX][regionZ];
         int terrainHere = terrain.GetInt(relativeX, relativeZ);
         
+        IntDataMap2D bathyMap = EarthMapCreator.Layers.BathyMap.IntValues[regionX][regionZ];
+        int bathyHere = bathyMap.GetInt(relativeX, relativeZ);
+        
         String msg = $"At {pos.X}, {pos.Z}, (region {regionX}, {regionZ})\n" +
-                     $"Climate: {climateHere}\n" +
-                     $"Terrain: {terrainHere}";
+                     $"Climate: {climateHere}\n";
+
+        // bathy check
+        if (bathyHere > 0)
+        {
+            msg += $"Terrain: Ocean Floor (Height: {bathyHere})";
+        }
+        else
+        {
+            msg += $"Terrain: Land (Height: {terrainHere})";
+        }
         
         return TextCommandResult.Success(msg);
     }

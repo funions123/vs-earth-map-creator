@@ -1,8 +1,8 @@
 using System;
+using SixLabors.ImageSharp.PixelFormats;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
-using Vintagestory.ServerMods;
 
 namespace EarthMapCreator;
 
@@ -29,7 +29,7 @@ public class Climate : ModSystem
         region.ForestMap.Data = GenLayer(EarthMapCreator.Layers.TreeMap, rx, rz, region.ForestMap.Size, region.ForestMap.Size, RegionSize / region.ForestMap.Size, _forestPostProcess);
     }
 
-    private static int[] GenLayer(DataMap bmp, int xCoord, int zCoord, int sizeX, int sizeZ, int scale, System.Func<int, int> consumer)
+    private static int[] GenLayer(DataMap<Rgb24> bmp, int xCoord, int zCoord, int sizeX, int sizeZ, int scale, System.Func<int, int> consumer)
     {
         // padding
         // |xx|16 chunks|xx|

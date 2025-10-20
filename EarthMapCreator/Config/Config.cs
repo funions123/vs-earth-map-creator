@@ -1,8 +1,8 @@
 namespace EarthMapCreator;
 
 public class Config {
-    public int MapWidthBlocks = 1024;
-    public int MapHeightBlocks = 512;
+    public int MapWidthBlocks = 10240;
+    public int MapHeightBlocks = 10240;
     
     // rivers
     public int RiverDepth = 20;

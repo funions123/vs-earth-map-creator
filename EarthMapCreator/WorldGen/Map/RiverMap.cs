@@ -1,9 +1,9 @@
-using SkiaSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Vintagestory.API.Datastructures;
 
 namespace EarthMapCreator;
 
-public class RiverMap : DataMap
+public class RiverMap : DataMap<Rgb24>
 {
     public int Min = 255;
     
@@ -30,8 +30,8 @@ public class RiverMap : DataMap
                     {
                         int posX = x * 512 + i;
                         int posZ = z * 512 + j;
-                        SKColor pixel = Bitmap.GetPixel(posX, posZ);
-                        byte red = pixel.Red;
+                        Rgb24 pixel = Bitmap[posX, posZ];
+                        byte red = pixel.R;
                         if (red < Min && red > 0)
                         {
                             Min = red;
