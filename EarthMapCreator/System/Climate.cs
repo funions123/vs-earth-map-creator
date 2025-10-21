@@ -14,7 +14,7 @@ public class Climate : ModSystem
     public override void StartServerSide(ICoreServerAPI api)
     {
         _api = api;
-        //api.Event.MapRegionGeneration(Event_After_OnMapRegionGen, "standard");
+        api.Event.MapRegionGeneration(Event_After_OnMapRegionGen, "standard");
     }
 
     public static void Event_After_OnMapRegionGen(IMapRegion region, int rx, int rz, ITreeAttribute attribute = null)
@@ -27,6 +27,7 @@ public class Climate : ModSystem
         Console.WriteLine("Modifying map data for region: " + rx + ", " + rz + " " + region.ClimateMap.Size);
         region.ClimateMap.Data = GenLayer(EarthMapCreator.Layers.ClimateMap, rx, rz, region.ClimateMap.Size, region.ClimateMap.Size, RegionSize / region.ClimateMap.Size, _climatePostProcess);
         region.ForestMap.Data = GenLayer(EarthMapCreator.Layers.TreeMap, rx, rz, region.ForestMap.Size, region.ForestMap.Size, RegionSize / region.ForestMap.Size, _forestPostProcess);
+        region.ShrubMap.Data = GenLayer(EarthMapCreator.Layers.TreeMap, rx, rz, region.ForestMap.Size, region.ForestMap.Size, RegionSize / region.ForestMap.Size, _forestPostProcess);
     }
 
     private static int[] GenLayer(DataMap<Rgb24> bmp, int xCoord, int zCoord, int sizeX, int sizeZ, int scale, System.Func<int, int> consumer)

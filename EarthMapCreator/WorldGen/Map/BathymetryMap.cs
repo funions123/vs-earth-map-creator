@@ -36,7 +36,7 @@ namespace EarthMapCreator
                             // we must scale the 16-bit value (0-65535) down to a standard 8-bit block height (0-255).
                             // This prevents excessively high values from being used as the ocean floor height.
                             // A value of 0 indicates no data for this pixel.
-                            int scaledHeight = (int)Math.Round(bathyPixel.R / 257.0);
+                            int scaledHeight = Math.Clamp((int)Math.Floor(bathyPixel.R / 257.0), 60, 110);
                             
                             IntValues[x][z].SetInt(i, j, (scaledHeight));
                         }

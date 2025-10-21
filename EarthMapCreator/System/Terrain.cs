@@ -60,11 +60,12 @@ public class Terrain : ModSystem
         var chunkX = request.ChunkX;
         var chunkZ = request.ChunkZ;
         var config = GlobalConfig.GetInstance(_api);
+        var blockLayerConfig = BlockLayerConfig.GetInstance(_api);
         int bedrock = config.mantleBlockId;
         int rock = config.defaultRockId;
         int water = config.waterBlockId;
         int saltWater = config.saltWaterBlockId;
-        int seaLevel = 111;
+        int seaLevel = 110;
         
         // Cut maps to chunk size
         int[,] bisectedCompleteTopoMap = CutHeightMapForChunk(completeTopoMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
@@ -117,8 +118,8 @@ public class Terrain : ModSystem
                 // Determine ground, surface, and fluid type for the current column
                 if (!isLand) // Case 1: Ocean
                 {
-                    groundHeight = bisectedBathyMap[lx, lz];
-                    surfaceHeight = seaLevel - 1;
+                    groundHeight = bisectedBathyMap[lx, lz] - 1;
+                    surfaceHeight = seaLevel;
                     fluidBlockId = saltWater;
                 }
                 else if (!isLake) // Case 2: Dry Land

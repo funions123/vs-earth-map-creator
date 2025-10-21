@@ -139,6 +139,14 @@ public class EarthWorldGenerator : ModSystem
         IntDataMap2D climate = EarthMapCreator.Layers.ClimateMap.IntValues[regionX][regionZ];
         int climateHere = climate.GetInt(relativeX, relativeZ);
         
+        IntDataMap2D tree = EarthMapCreator.Layers.TreeMap.IntValues[regionX][regionZ];
+        int treeHere = tree.GetInt(relativeX, relativeZ);
+        
+        // Unpack the climate integer using bitwise operations
+        int temperature = (climateHere >> 16) & 0xFF;
+        int rainfall = (climateHere >> 8) & 0xFF;
+        int geoActivity = climateHere & 0xFF; // The blue channel is used for geologic activity in vanilla
+        
         IntDataMap2D terrain = EarthMapCreator.Layers.HeightMap.IntValues[regionX][regionZ];
         int terrainHere = terrain.GetInt(relativeX, relativeZ);
         
@@ -146,7 +154,8 @@ public class EarthWorldGenerator : ModSystem
         int bathyHere = bathyMap.GetInt(relativeX, relativeZ);
         
         String msg = $"At {pos.X}, {pos.Z}, (region {regionX}, {regionZ})\n" +
-                     $"Climate: {climateHere}\n";
+                     $"Climate - Temp: {temperature}, Rain: {rainfall}, Geo: {geoActivity}\n" +
+                     $"Tree: {treeHere}\n";
 
         // bathy check
         if (bathyHere > 0)
