@@ -31,7 +31,7 @@ if [[ ! -f land-polygons-complete-4326.zip ]]; then
 fi &&
 if [[ ! -f land-polygons-complete-4326.zip ]]; then
   log "CRITICAL ERROR: OSM Land Polygons download failed, please retry again later."
-  abort_duetoerror_cleanup 8
+  abort_duetoerror_cleanup $VSERR_NO_OSMLANDPOLYGONS
 fi
 fi
 
@@ -52,6 +52,18 @@ gdal_edit.py -unsetnodata $WORK_DIR/land_osm_mask.tif
 log "Getting river data"
 cd $OSM_DIR
 get_local_dataset ne_10m_rivers_lake_centerlines.zip .
+if [[ ! -f ne_10m_rivers_lake_centerlines.zip ]]; then
+  log "Rivers/lakes not found locally, Downloading..."
+  url="https://huggingface.co/spaces/tlm9201/vs-earth-map-mod/resolve/main/ne_10m_rivers_lake_centerlines.zip"
+  download_file $url ne_10m_rivers_lake_centerlines.zip
+fi
+
+if [[ ! -f ne_10m_rivers_lake_centerlines.zip ]]; then
+  log "CRITICAL ERROR: Failed to download natural earth rivers/lakes"
+  abort_duetoerror_cleanup $VSERR_NO_NE_LAKERIVERCENTERLINES
+fi
+
+save_dataset_locally ne_10m_rivers_lake_centerlines.zip
 unzip ne_10m_rivers_lake_centerlines.zip
 
 log "Processing rivers"
@@ -78,6 +90,19 @@ log "Done with rivers"
 cd $OSM_DIR
 log "Getting lake data"
 get_local_dataset ne_10m_lakes.zip .
+
+if [[ ! -f ne_10m_lakes.zip ]]; then
+  log "Lakes not found, downloading"
+  url="https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip"
+  download_file $url ne_10m_lakes.zip
+fi
+
+if [[ ! -f ne_10m_lakes.zip ]]; then
+  log "CRITICAL ERROR: failed to download natural earth lakes"
+  abort_duetoerror_cleanup $VSERR_NO_NE_LAKES
+fi
+
+save_dataset_locally ne_10m_lakes.zip
 unzip ne_10m_lakes.zip
 
 log "Processing lakes"

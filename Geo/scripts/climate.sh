@@ -5,10 +5,21 @@ CLIMATE_DIR="$WORK_DIR/climate"
 mkdir -p $CLIMATE_DIR
 
 log "Getting climate data"
-
+cd $CLIMATE_DIR
 get_local_dataset wc2.1_30s_prec_tavg.zip $CLIMATE_DIR/.
 
-cd $CLIMATE_DIR
+if [[ ! -f wc2.1_30s_prec_tavg.zip ]]; then
+  log "climate data not found locally, downloading"
+  url="https://huggingface.co/spaces/tlm9201/vs-earth-map-mod/resolve/main/wc2.1_30s_prec_tavg.zip"
+  download_file $url wc2.1_30s_prec_tavg.zip
+fi
+
+if [[ ! -f wc2.1_30s_prec_tavg.zip ]]; then
+  log "CRITICAL ERROR: failed to download climate data"
+  abort_duetoerror_cleanup $VSERR_NO_CLIMATE
+fi
+
+save_dataset_locally wc2.1_30s_prec_tavg.zip
 unzip wc2.1_30s_prec_tavg.zip
 
 log "Processing climate data"

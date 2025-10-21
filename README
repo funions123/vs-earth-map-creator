@@ -40,6 +40,7 @@ Limitations/TODO
 - Much more data is missing that can be applied to VS (i.e. rock strata, ores)
 - Vintage Story - map resolutions/padding are hardcoded on the client
 - Alot of values are hardcoded
+See ./TODO for a more comprehensive list
 
 Data Used/Acknowledgments
 -------------------
