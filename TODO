@@ -1,0 +1,49 @@
+stuff todo
+===============
+
+- add more data
+bathymetry, rock strata, hot springs, ores, etc.
+these are all publicly available datasets that could be used by the mod.
+perhaps some integration with the biomes mod would be cool as well: https://mods.vintagestory.at/show/mod/8785
+there is ALOT of data that can be used. much more than i mentioned here.
+
+- allow any map size generation
+vs region size is 512, i only take in a map size that is divisble by this for simplicity.
+this would be straightforward to implement, we just divide the map into its divisible sections,
+then when that generation is complete, we can generate the excess on the edges.
+
+- higher DEM limits (255+) 
+the mod only reads in height from one rgb channel, since vs allows much higher height limits than minecraft,
+it would be nice to read in height from all three channels. another option could be to use 2 channels for height,
+and the last channel for bathymetry.
+
+- use some lossless compressed format instead of bmp
+png
+
+- generate map in parts
+add a way to generate very large maps in multiple parts. or if a generation crashes,
+we can safely return to where we stopped and continue generation.
+
+- fix lag spikes when generating near worldborder
+might be issue with vs, console gets spammed and the game bricks sometimes.
+very annoying
+
+
+long term
+===============
+
+- publish pre-genned maps on a website
+hosting some free example maps for people to try out would be nice. 
+
+- integrate bmp creation/map creation
+add some seamless way to generate a map with one command.
+we can generate the bmps, boot up a vs server with the mod in docker,
+then run generation, and provide output vs world to user.
+
+- docker? gui?
+make it easy for windows plebs to use this
+
+- vs-worldpainter
+lol
+vs fantasy mmo server?!
+

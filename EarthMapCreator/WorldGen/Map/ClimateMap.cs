@@ -1,10 +1,9 @@
-using System;
-using SkiaSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Vintagestory.API.Datastructures;
 
 namespace EarthMapCreator;
 
-public class ClimateMap : DataMap
+public class ClimateMap : DataMap<Rgb24>
 {
     public ClimateMap(string filePath) : base(filePath)
     {
@@ -30,11 +29,25 @@ public class ClimateMap : DataMap
                     {
                         int posX = x * 512 + i;
                         int posZ = z * 512 + j;
-                        SKColor pixel = Bitmap.GetPixel(posX, posZ);
+                        Rgb24 pixel = Bitmap[posX, posZ];
 
-                        byte red = pixel.Red;
-                        byte green = pixel.Green;
-                        byte blue = pixel.Blue;
+                        byte red;
+                        byte green;
+                        byte blue;
+
+                        if (pixel.R < 160)
+                        {
+                            red = pixel.R;
+                            green = (byte)(pixel.G + 40);
+                            blue = pixel.B;
+                        }
+                        else
+                        {
+                            red = pixel.R;
+                            green = pixel.G;
+                            blue = pixel.B;
+                        }
+                        
                         int rgb = red;
                         rgb = (rgb << 8) + green;
                         rgb = (rgb << 8) + blue;

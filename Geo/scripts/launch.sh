@@ -1,17 +1,39 @@
 #!/bin/bash
-
+PGID=$(ps -o pgid= $$ | grep -o [0-9]*)
 MAIN_DIR=$PWD
-echo $MAIN_DIR
 SCRIPTS=$MAIN_DIR/scripts
 WORK_DIR=$PWD/work
 mkdir -p $WORK_DIR
-echo $MAIN_DIR
 LOCAL_DATASETS_DIR=$MAIN_DIR/datasets
+rm $MAIN_DIR/log.txt
+
+# Errors
+VSERR_NO_OSMLANDPOLYGONS="10"
+VSERR_NO_NE_LAKERIVERCENTERLINES="11"
+VSERR_NO_NE_LAKES="12"
+VSERR_NO_DEM="20"
+VSERR_NO_TREECANOPY="30"
+VSERR_NO_CLIMATE="40"
 
 log() {
 	logfile=$MAIN_DIR/log.txt
 	echo -e "LOG [`date +%Y-%m-%d_%H:%M:%S`] "$1" "
-	#echo -e "LOG [`date +%Y-%m-%d_%H:%M:%S`] "$1" " >> $logfile
+	echo -e "LOG [`date +%Y-%m-%d_%H:%M:%S`] "$1" " >> $logfile
+}
+
+download_file() {
+  curl -C - --connect-timeout 10 --retry 60 --retry-delay 10 --retry-all-errors -L -n $1 -o $2
+}
+
+abort_duetoerror_cleanup() {
+	log "Aborting due to error code $1"
+	trap - SIGTERM
+	sleep 5
+  log "Working directory files at failure point:"
+	ls -lR $WORK_DIR/ >> $MAIN_DIR/log.txt
+	cd $DATA_DIR/$MAP_CODENAME/
+	kill -TERM -$PGID
+	exit 0
 }
 
 save_dataset_locally() {

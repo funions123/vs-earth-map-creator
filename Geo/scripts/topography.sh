@@ -11,6 +11,11 @@ if [[ ! -f $DEM_DIR/ds75_grd.zip ]]; then
   curl -C - --connect-timeout 10 --retry 60 --retry-delay 10 --retry-all-errors -L $url -o $DEM_DIR/ds75_grd.zip
 fi
 
+if [[ ! -f $DEM_DIR/ds75_grd.zip ]]; then
+  log "CRITICAL ERROR: failed to download DEM data"
+  abort_duetoerror_cleanup $VSERR_NO_DEM
+fi
+
 cd $DEM_DIR
 log "Unzipping DEM data"
 unzip -o ds75_grd.zip

@@ -1,6 +1,23 @@
 RESIZE_MAP=1
+<<<<<<< HEAD
+FINAL_WIDTH=10240
+FINAL_LENGTH=10240
+
+# Eastern Mediterranean
+LAT_MIN_4326="25.0"
+LAT_MAX_4326="50.0"
+LON_MIN_4326="5.0"
+LON_MAX_4326="40.0"
+
+# Great Lakes
+#LAT_MIN_4326="35.013755"
+#LAT_MAX_4326="50.627996"
+#LON_MIN_4326="-90.084961"
+#LON_MAX_4326="-75.350586"
+=======
 FINAL_WIDTH=1024
 FINAL_LENGTH=1024
+>>>>>>> c512d85b969d3abd98b3f70b1983700ae782f139
 
 # Ireland
 LAT_MIN_4326="51.013755"
@@ -45,11 +62,11 @@ LON_MAX_4326="-4.350586"
 # LAT_MAX_4326="50"
 # LON_MIN_4326="-5"
 # LON_MAX_4326="8"
+
 LAT_MIN_FINAL=$LAT_MIN_4326
 LAT_MAX_FINAL=$LAT_MAX_4326
 LON_MIN_FINAL=$LON_MIN_4326
 LON_MAX_FINAL=$LON_MAX_4326
-
 
 FINAL_RES="300"
 FORCE_FINAL_PROJ="ESRI:54080"
@@ -58,5 +75,18 @@ bathymetry="1" # TODO
 download_datasets_locally="1"
 force_local_datasets_update="0"
 
+<<<<<<< HEAD
+# --- Custom Bathymetry Scaling ---
+# Set to 1 to enable custom scaling, 0 to use the default full range (0-255).
+ENABLE_BATHY_CUSTOM_SCALE=1
+
+# Vintage story sea level (default 92) (max 255)
+BATHY_SCALE_SEALEVEL=92
+
+# Vintage story maximum ocean depth (default 50?)
+BATHY_SCALE_MAXDEPTH=50
+
+=======
+>>>>>>> c512d85b969d3abd98b3f70b1983700ae782f139
 # in pixels (blocks)
-major_river_width=5
+major_river_width=1

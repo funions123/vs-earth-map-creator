@@ -58,20 +58,33 @@ log "Processing rivers"
 osmconvert $OSM_DIR/ne_10m_rivers_lake_centerlines.osm --drop-author -b=$OSM_LON_MIN,$OSM_LAT_MIN,$OSM_LON_MAX,$OSM_LAT_MAX -o=crop_rivers.osm
 waterways_drop="intermittent=yes"
 
-#major_river_names=$(awk 'NF && !/^#/ {sub(/ \(.*$/, ""); print}' $MAIN_DIR/config/$major_rivers_file | awk '!seen[$0]++' | awk '{gsub(/ /, "\\ "); printf "name=%s or ", $0}' | sed 's/ or $//')
-#major_waterways_filter=$(awk '{print "name=" $0}' $MAIN_DIR/config/$major_rivers_file | paste -s -d '|' | sed 's/|/ or /g')
-major_waterways_filter=$(awk '{gsub(/ /, "\\ "); print "name=" $0}' $MAIN_DIR/config/$major_rivers_file | paste -s -d '|' | sed 's/|/ or /g')
-echo "Major waterways filter: $major_waterways_filter"
-
-cp $WORK_DIR/dummy.tif $WORK_DIR/rivers.tif
-
+# --- Step 1: Define river_width ---
+log "Calculating river width..."
 river_width=$(echo "$major_river_width/$FINAL_RES" | bc -l)
 
-osmfilter crop_rivers.osm --keep="$major_waterways_filter" -o=$OSM_DIR/crop_rivers_filtered.osm 
+# --- Step 2: Build the SQL filter list ---
+log "Building SQL filter for major rivers..."
+river_list=$(awk '{printf "\047%s\047,", $0}' $MAIN_DIR/config/major_rivers.txt | sed 's/,$//')
 
-ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX -dialect SQLite -sql "SELECT ST_Buffer(geometry,$river_width) FROM lines" -f GPKG $WORK_DIR/crop_rivers.gpkg $OSM_DIR/crop_rivers_filtered.osm
+# --- Step 3a: Filter rivers into an intermediate file (without buffering) ---
+log "Filtering rivers into an intermediate GeoPackage..."
+ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX \
+    -dialect SQLite \
+    -sql "SELECT geometry FROM lines WHERE name IN ($river_list) UNION ALL SELECT geometry FROM multilinestrings WHERE name IN ($river_list)" \
+    -f GPKG -nln rivers $WORK_DIR/filtered_rivers.gpkg $OSM_DIR/crop_rivers.osm
 
-gdal_rasterize -l SELECT -at -burn 255 $WORK_DIR/crop_rivers.gpkg $WORK_DIR/rivers.tif
+# --- Step 3b: Buffer the filtered rivers from the intermediate file ---
+log "Buffering (expanding) the filtered rivers..."
+ogr2ogr \
+    -dialect SQLite \
+    -sql "SELECT ST_Buffer(geometry, $river_width) FROM rivers" \
+    -f GPKG -nln buffered_rivers $WORK_DIR/crop_rivers.gpkg $WORK_DIR/filtered_rivers.gpkg
+
+# --- Step 4: Rasterize the result ---
+log "Rasterizing rivers to the final mask..."
+cp $WORK_DIR/dummy.tif $WORK_DIR/rivers.tif
+gdal_rasterize -l buffered_rivers -at -burn 255 -burn 255 -burn 255 -burn 255 $WORK_DIR/crop_rivers.gpkg $WORK_DIR/rivers.tif
+gdal_edit.py -unsetnodata $WORK_DIR/rivers.tif
 
 log "Done with rivers"
 
@@ -83,8 +96,7 @@ unzip ne_10m_lakes.zip
 log "Processing lakes"
 ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX -f GPKG $WORK_DIR/crop_lakes.gpkg $OSM_DIR/ne_10m_lakes.shp ne_10m_lakes
 
-gdal_rasterize -l ne_10m_lakes -burn 255 $WORK_DIR/crop_lakes.gpkg $WORK_DIR/rivers.tif
-
 log "Done with lakes"
 log "DONE processing osm data"
+
 

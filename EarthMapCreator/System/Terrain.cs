@@ -1,12 +1,8 @@
-using System;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using Vintagestory.API.Common;
-using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
-using Vintagestory.API.Util;
 using Vintagestory.ServerMods;
 using Vintagestory.ServerMods.NoObf;
 
@@ -42,158 +38,139 @@ public class Terrain : ModSystem
 
     protected void GenerateTerrain(IChunkColumnGenerateRequest request, int regionX, int regionZ)
     {
+        var layers = EarthMapCreator.Layers;
         int chunkSize = _api.WorldManager.ChunkSize;
-        int chunkX = request.ChunkX;
-        int chunkZ = request.ChunkZ;
-        
-        IntDataMap2D heightMap = EarthMapCreator.Layers.HeightMap.IntValues[regionX][regionZ];
-        IntDataMap2D riverMap = EarthMapCreator.Layers.RiverMap.IntValues[regionX][regionZ];
-        
-        IServerChunk[] chunks = request.Chunks;
-        
-        int[,] bisectedHeightMap = CutHeightMapForChunk(heightMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
-        
-        var minY = int.MaxValue;
-        var maxY = int.MinValue;
 
-        foreach (var height in bisectedHeightMap)
+        // --- SAFETY CHECK ---
+        if (regionX < 0 || regionX >= layers.HeightMap.IntValues.Length || 
+            regionZ < 0 || regionZ >= layers.HeightMap.IntValues[0].Length)
         {
-            if (height > maxY)
+            return;
+        }
+
+        // Get all required maps for this region
+        IntDataMap2D completeTopoMap = layers.CompleteTopoMap.IntValues[regionX][regionZ];
+        IntDataMap2D heightMap = layers.HeightMap.IntValues[regionX][regionZ];
+        IntDataMap2D lakeMaskMap = layers.LakeMaskMap.IntValues[regionX][regionZ];
+        IntDataMap2D landMaskMap = layers.LandMaskMap.IntValues[regionX][regionZ];
+        IntDataMap2D bathyMap = layers.BathyMap.IntValues[regionX][regionZ];
+        IntDataMap2D riverMap = layers.RiverMap.IntValues[regionX][regionZ]; 
+        
+        // Get chunk data and config
+        IServerChunk[] chunks = request.Chunks;
+        var chunkX = request.ChunkX;
+        var chunkZ = request.ChunkZ;
+        var config = GlobalConfig.GetInstance(_api);
+        var blockLayerConfig = BlockLayerConfig.GetInstance(_api);
+        int bedrock = config.mantleBlockId;
+        int rock = config.defaultRockId;
+        int water = config.waterBlockId;
+        int saltWater = config.saltWaterBlockId;
+        int seaLevel = 110;
+        
+        // Cut maps to chunk size
+        int[,] bisectedCompleteTopoMap = CutHeightMapForChunk(completeTopoMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
+        int[,] bisectedHeightMap = CutHeightMapForChunk(heightMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
+        int[,] bisectedLakeMaskMap = CutHeightMapForChunk(lakeMaskMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
+        int[,] bisectedLandMaskMap = CutHeightMapForChunk(landMaskMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
+        int[,] bisectedBathyMap = CutHeightMapForChunk(bathyMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
+        int[,] bisectedRiverMap = CutHeightMapForChunk(riverMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
+        
+        // --- Determine max Y for loop boundary ---
+        var maxY = int.MinValue;
+        for (int lx = 0; lx < chunkSize; lx++)
+        {
+            for (int lz = 0; lz < chunkSize; lz++)
             {
-                maxY = height;
-            }
-            
-            if (height < minY)
-            {
-                minY = height;
+                bool isLand = bisectedLandMaskMap[lx, lz] > 0;
+                int surfaceHeight;
+
+                if (!isLand) { // Ocean surface is always sea level
+                    surfaceHeight = seaLevel;
+                } else { // Land or Lake surface is from the heightmap
+                    surfaceHeight = bisectedHeightMap[lx, lz];
+                }
+                
+                if (surfaceHeight > maxY) maxY = surfaceHeight;
             }
         }
 
         int mapSizeY = _api.WorldManager.MapSizeY;
         
-        // idx -> y coordinate
-        bool[] layerFullySolid = new bool[mapSizeY];
-        bool[] layerFullyEmpty = new bool[mapSizeY];
+        ushort[] rainHeightMap = chunks[0].MapChunk.RainHeightMap;
+        ushort[] terrainHeightMap = chunks[0].MapChunk.WorldGenTerrainHeightMap;
         
-        for (int y = 0; y < mapSizeY; y++)
-        {
-            if (y <= minY)
-            {
-                layerFullySolid[y] = true;
-            }
-            else
-            {
-                layerFullySolid[y] = false;
-            }
-            
-            if (y > maxY)
-            {
-                layerFullyEmpty[y] = true;
-            }
-            else
-            {
-                layerFullyEmpty[y] = false;
-            }
-        }
+        // Bedrock Layer
+        chunks[0].Data.SetBlockBulk(0, chunkSize, chunkSize, bedrock);
         
-        var chunk = chunks[0];
-        var chunkData = chunk.Data;
-
-        ushort[] rainHeightMap = chunk.MapChunk.RainHeightMap;
-        ushort[] terrainHeightMap = chunk.MapChunk.WorldGenTerrainHeightMap;
-        
-        // 0 is bedrock
-        var config = GlobalConfig.GetInstance(_api);
-        int bedrock = config.mantleBlockId;
-        int rock = config.defaultRockId;
-        int seaLevel = TerraGenConfig.seaLevel;
-        
-        chunkData.SetBlockBulk(0, chunkSize, chunkSize, bedrock);
-        
-        int yTop = mapSizeY - 2;
-        int yBase = 1;
-        for (; yBase < yTop - 1; yBase++)
-        {
-            if (layerFullySolid[yBase])
-            {
-                // rock
-                if (yBase % chunkSize == 0)
-                {
-                    chunkData = chunks[yBase / chunkSize].Data;
-                }
-                
-                chunkData.SetBlockBulk((yBase % chunkSize) * chunkSize * chunkSize, chunkSize, chunkSize, rock);
-            }
-            // otherwise, mixed layer (surface)
-            else
-            {
-                break;
-            }
-        }
-
-        // come from top -> down
-        while (yTop >= yBase && layerFullyEmpty[yTop])
-        {
-            yTop--;
-        }
-        
-        // clamp to sea level
-        if (yTop < seaLevel)
-        {
-            yTop = seaLevel;
-        }
-        
-        // fill mixed layer column by column
+        // --- Fill layers column by column from bedrock up ---
         for (int lx = 0; lx < chunkSize; lx++)
         {
             for (int lz = 0; lz < chunkSize; lz++)
             {
-                int rx = lx + chunkSize * chunkX - _api.WorldManager.RegionSize * regionX;
-                int rz = lz + chunkSize * chunkZ - _api.WorldManager.RegionSize * regionZ;
-                
                 int mapIdx = ChunkIndex2d(lx, lz);
                 
-                // y is the top of this column
-                // ybase is the start
-                // fill from ybase to y
-                int y = bisectedHeightMap[lx, lz];
-                int waterBase = y;
-                if (y < seaLevel) y = seaLevel - 1;
-                
-                terrainHeightMap[mapIdx] = (ushort)(yBase - 1);
-                rainHeightMap[mapIdx] = (ushort)(yBase - 1);
-                bool freshWater = IsFreshWaterHere(config, riverMap, rx, rz);
+                bool isLand = bisectedLandMaskMap[lx, lz] > 0;
+                bool isLake = bisectedLakeMaskMap[lx, lz] > 0;
+                bool isRiver = bisectedRiverMap[lx, lz] > 0;
 
-                int block;
-                
-                for (int yy = yBase; yy <= y; yy++)
+                int groundHeight;
+                int surfaceHeight;
+                int fluidBlockId = 0; // 0 means no fluid
+
+                // Determine ground, surface, and fluid type for the current column
+                if (!isLand) // Case 1: Ocean
                 {
+                    groundHeight = bisectedBathyMap[lx, lz] - 1;
+                    surfaceHeight = seaLevel;
+                    fluidBlockId = saltWater;
+                }
+                else if (isRiver) // Case 2: River
+                {
+                    groundHeight = bisectedCompleteTopoMap[lx, lz];
+                    surfaceHeight = bisectedHeightMap[lx, lz];
+                    fluidBlockId = water;
+                }
+                else if (!isLake) // Case 2: Dry Land
+                {
+                    groundHeight = bisectedHeightMap[lx, lz];
+                    surfaceHeight = groundHeight;
+                    // fluidBlockId remains 0
+                }
+                else // Case 3: Lake
+                {
+                    int topoHeight = bisectedCompleteTopoMap[lx, lz];
+                    groundHeight = (topoHeight > 0) ? topoHeight : bisectedBathyMap[lx, lz];
+                    surfaceHeight = bisectedHeightMap[lx, lz];
+                    fluidBlockId = water;
+                }
+
+                // Set the engine's heightmaps
+                terrainHeightMap[mapIdx] = (ushort)groundHeight;
+                rainHeightMap[mapIdx] = (ushort)surfaceHeight;
+
+                // Generate the column based on the determined heights
+                for (int yy = 1; yy <= maxY + 1; yy++)
+                {
+                    if (yy >= mapSizeY) continue;
+                    int chunkIndex = yy / chunkSize;
+                    if (chunkIndex >= chunks.Length) continue;
+                    var chunkData = chunks[chunkIndex].Data;
                     int ly = yy % chunkSize;
                     int chunkIdx = ChunkIndex3d(lx, ly, lz);
-                    chunkData = chunks[yy / chunkSize].Data;
-                    
-                    if (((yy < seaLevel && y < seaLevel) || freshWater) && yy > waterBase)
+
+                    if (yy <= groundHeight)
                     {
-                        if (yy == seaLevel - 1)
-                        {
-                            block = freshWater ? config.waterBlockId : config.saltWaterBlockId; 
-                            
-                            // surface
-                            rainHeightMap[mapIdx] = (ushort)yy;
-                        }
-                        else
-                        {
-                            block = config.waterBlockId;
-                        }
-                        
-                        chunkData.SetFluid(chunkIdx, block);
+                        chunkData[chunkIdx] = rock;
+                    }
+                    else if (yy <= surfaceHeight)
+                    {
+                        // This block will only be entered for ocean or lakes
+                        chunkData.SetFluid(chunkIdx, fluidBlockId);
                     }
                     else
                     {
-                        block = rock;
-                        chunkData[chunkIdx] = block;
-                        terrainHeightMap[mapIdx] = (ushort)yy;
-                        rainHeightMap[mapIdx] = (ushort)yy;
+                        chunkData[chunkIdx] = 0; // Air
                     }
                 }
             }
