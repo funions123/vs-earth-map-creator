@@ -31,9 +31,23 @@ public class ClimateMap : DataMap<Rgb24>
                         int posZ = z * 512 + j;
                         Rgb24 pixel = Bitmap[posX, posZ];
 
-                        byte red = pixel.R;
-                        byte green = pixel.G;
-                        byte blue = pixel.B;
+                        byte red;
+                        byte green;
+                        byte blue;
+
+                        if (pixel.R < 160)
+                        {
+                            red = pixel.R;
+                            green = (byte)(pixel.G + 40);
+                            blue = pixel.B;
+                        }
+                        else
+                        {
+                            red = pixel.R;
+                            green = pixel.G;
+                            blue = pixel.B;
+                        }
+                        
                         int rgb = red;
                         rgb = (rgb << 8) + green;
                         rgb = (rgb << 8) + blue;

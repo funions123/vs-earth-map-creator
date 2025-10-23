@@ -3,11 +3,12 @@
     "modid": "earthmapcreator",
     "name": "EarthMapCreator",
     "authors": [
-        "tlm920"
+        "tlm920",
+        "onions"
     ],
     "description": "make cool earth maps in vintage story",
     "version": "1.0.0",
     "dependencies": {
-        "game": "VSSurvivalMod"
+        "game": ""
     }
 }

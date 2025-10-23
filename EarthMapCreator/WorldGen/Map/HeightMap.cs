@@ -8,7 +8,7 @@ namespace EarthMapCreator;
 public class HeightMap : DataMap<Rgb48>
 {
     const int SeaLevel = 110;
-    private const int MaxHeight = 250;
+    private const int MaxHeight = 180;
     const int HeightRange = MaxHeight - SeaLevel;
 
     public HeightMap(string filePath, string landcoverFile, RiverMap rivers) : base(filePath)
@@ -43,25 +43,18 @@ public class HeightMap : DataMap<Rgb48>
 
                         if (isLand)
                         {
-                            // Calculate height as a fraction of the range between sea level and max height.
-                            float heightFraction = heightPixel.R / 65535.0f;
-                            height = SeaLevel + (int)Math.Round(HeightRange * heightFraction);
-
-                            // Apply river carving
                             int riverHere = rivers.IntValues[x][z].GetInt(i, j);
                             if (riverHere > 0)
                             {
-                                int diffFromMin = riverHere - rivers.Min;
-                                int maxDiff = 255 - rivers.Min;
-                                
-                                float riverNormalized = (float) diffFromMin / maxDiff;
-                                int riverDepth = (int) (EarthMapCreator.config.RiverDepth * riverNormalized) + 1;
-                                height -= riverDepth;
+                                // Set river surface height to sea level
+                                height = SeaLevel;
                             }
-
-                            // Ensure that after all calculations, the land height is never below sea level.
-                            // This prevents artifacts along shorelines where river carving might dip the terrain too low.
-                            height = Math.Max(SeaLevel, height);
+                            else
+                            {
+                                float heightFraction = heightPixel.R / 65535.0f;
+                                height = SeaLevel + (int)Math.Round(HeightRange * heightFraction);
+                                height = Math.Max(SeaLevel, height);
+                            }
                         }
 
                         IntValues[x][z].SetInt(i, j, height);

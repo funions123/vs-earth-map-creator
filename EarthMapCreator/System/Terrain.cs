@@ -54,6 +54,7 @@ public class Terrain : ModSystem
         IntDataMap2D lakeMaskMap = layers.LakeMaskMap.IntValues[regionX][regionZ];
         IntDataMap2D landMaskMap = layers.LandMaskMap.IntValues[regionX][regionZ];
         IntDataMap2D bathyMap = layers.BathyMap.IntValues[regionX][regionZ];
+        IntDataMap2D riverMap = layers.RiverMap.IntValues[regionX][regionZ]; 
         
         // Get chunk data and config
         IServerChunk[] chunks = request.Chunks;
@@ -73,6 +74,7 @@ public class Terrain : ModSystem
         int[,] bisectedLakeMaskMap = CutHeightMapForChunk(lakeMaskMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
         int[,] bisectedLandMaskMap = CutHeightMapForChunk(landMaskMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
         int[,] bisectedBathyMap = CutHeightMapForChunk(bathyMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
+        int[,] bisectedRiverMap = CutHeightMapForChunk(riverMap, new Vec2i(chunkX, chunkZ), new Vec2i(regionX, regionZ));
         
         // --- Determine max Y for loop boundary ---
         var maxY = int.MinValue;
@@ -110,6 +112,7 @@ public class Terrain : ModSystem
                 
                 bool isLand = bisectedLandMaskMap[lx, lz] > 0;
                 bool isLake = bisectedLakeMaskMap[lx, lz] > 0;
+                bool isRiver = bisectedRiverMap[lx, lz] > 0;
 
                 int groundHeight;
                 int surfaceHeight;
@@ -121,6 +124,12 @@ public class Terrain : ModSystem
                     groundHeight = bisectedBathyMap[lx, lz] - 1;
                     surfaceHeight = seaLevel;
                     fluidBlockId = saltWater;
+                }
+                else if (isRiver) // Case 2: River
+                {
+                    groundHeight = bisectedCompleteTopoMap[lx, lz];
+                    surfaceHeight = bisectedHeightMap[lx, lz];
+                    fluidBlockId = water;
                 }
                 else if (!isLake) // Case 2: Dry Land
                 {

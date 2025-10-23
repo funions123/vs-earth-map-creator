@@ -36,7 +36,7 @@ public class MapLayers {
         var riverFile = files.First(n => Path.GetFileName(n) == "river.png");
         
         RiverMap = new RiverMap(riverFile);
-        CompleteTopoMap = new TopoMap(completeTopoFile, landmaskFile);
+        CompleteTopoMap = new TopoMap(completeTopoFile, landmaskFile, (RiverMap)RiverMap);
         HeightMap = new HeightMap(heightmapFile, landmaskFile, (RiverMap)RiverMap);
         BathyMap = new BathymetryMap(bathymapFile);
         ClimateMap = new ClimateMap(climateFile);

@@ -54,7 +54,21 @@ internal static class Patches
 
         sapi.Logger.Notification("[EarthMapCreator] Harmony patch triggered: Overwriting GetClimateMapGen.");
 
-        __result = new MapLayerFromImage(seed, EarthMapCreator.Layers.ClimateMap.IntValues, sapi, TerraGenConfig.climateMapScale);
+        __result = new MapLayerFromImage(seed, EarthMapCreator.Layers.ClimateMap.IntValues, sapi, TerraGenConfig.climateMapScale, Climate.ClimatePostProcess);
+        
+        return false; // Skip the original method
+    }
+    
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(GenMaps), "GetForestMapGen")]
+    public static bool GetForestMapGen_Prefix(long seed, int scale, ref MapLayerBase __result)
+    {
+        var sapi = EarthMapPatches._api;
+        if (sapi == null) return true; 
+
+        sapi.Logger.Notification("[EarthMapCreator] Harmony patch triggered: Overwriting GetForestMapGen.");
+
+        __result = new MapLayerFromImage(seed, EarthMapCreator.Layers.TreeMap.IntValues, sapi, TerraGenConfig.forestMapScale, Climate.ForestPostProcess);
         
         return false; // Skip the original method
     }

@@ -13,12 +13,14 @@ public class MapLayerFromImage : MapLayerBase
     private IntDataMap2D[][] _sourceMap;
     private int _regionSize;
     private int _scale; // The scaling factor used by the map layer (e.g., TerraGenConfig.climateMapScale)
+    private System.Func<int, int, int, int> _postProcessFunc;
 
-    public MapLayerFromImage(long seed, IntDataMap2D[][] sourceMap, ICoreServerAPI api, int scale) : base(seed)
+    public MapLayerFromImage(long seed, IntDataMap2D[][] sourceMap, ICoreServerAPI api, int scale, System.Func<int, int, int, int> postProcessFunc = null) : base(seed)
     {
         _sourceMap = sourceMap;
         _regionSize = api.WorldManager.RegionSize;
         _scale = scale;
+        _postProcessFunc = postProcessFunc;
     }
 
     public override int[] GenLayer(int xCoord, int zCoord, int sizeX, int sizeZ)
@@ -53,7 +55,15 @@ public class MapLayerFromImage : MapLayerBase
                 int relativeX = currentBlockX % _regionSize;
                 int relativeZ = currentBlockZ % _regionSize;
                 
-                result[z * sizeX + x] = regionMap.GetInt(relativeX, relativeZ);
+                if (relativeX < 0) relativeX += _regionSize;
+                if (relativeZ < 0) relativeZ += _regionSize;
+                
+                int rawValue = regionMap.GetInt(relativeX, relativeZ);
+
+                // If a processing function was provided, use it. Otherwise, use the raw value.
+                result[z * sizeX + x] = _postProcessFunc != null 
+                    ? _postProcessFunc(rawValue, currentBlockX, currentBlockZ) 
+                    : rawValue;
             }
         }
 

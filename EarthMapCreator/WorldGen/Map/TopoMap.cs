@@ -7,16 +7,16 @@ namespace EarthMapCreator;
 
 /// <summary>
 /// Loads a topography map for final terrain shape, which is identical to the heightmap,
-/// except it has the lakebeds. No rivers.
+/// except it has the lakebeds and river carving.
 /// Value of 0 indicates no data for this pixel.
 /// </summary>
 public class TopoMap : DataMap<Rgb48>
 {
     const int SeaLevel = 110;
-    private const int MaxHeight = 250;
+    private const int MaxHeight = 180;
     const int HeightRange = MaxHeight - SeaLevel;
 
-    public TopoMap(string filePath, string landcoverFile) : base(filePath)
+    public TopoMap(string filePath, string landcoverFile, RiverMap rivers) : base(filePath)
     {
         Image<Rgb24> landcoverBmp = LoadBitmap<Rgb24>(landcoverFile);
 
@@ -44,15 +44,32 @@ public class TopoMap : DataMap<Rgb48>
                         Rgb48 heightPixel = Bitmap[posX, posZ];
 
                         bool hasTopoData = heightPixel.R > 0;
-                        int height = 0; // Default to 0 (no data)
+                        int finalHeight = 0; // Default to 0 (no data)
+                        
+                        int riverHere = rivers.IntValues[x][z].GetInt(i, j);
 
-                        if (hasTopoData)
+                        if (hasTopoData || riverHere > 0)
                         {
-                            float heightFraction = heightPixel.R / 65535.0f;
-                            height = SeaLevel + (int)Math.Round(HeightRange * heightFraction);
+                            float heightFraction = (heightPixel.R / 65535.0f);
+                            int calculatedHeight = SeaLevel + (int)Math.Round(HeightRange * heightFraction);
+                            
+                            // River carving logic
+                            if (riverHere > 0)
+                            {
+                                calculatedHeight = SeaLevel;
+                                
+                                int diffFromMin = riverHere - rivers.Min;
+                                int maxDiff = 255 - rivers.Min;
+                                
+                                float riverNormalized = (float) diffFromMin / maxDiff;
+                                int riverDepth = (int) (EarthMapCreator.config.RiverDepth * riverNormalized) + 1;
+                                calculatedHeight -= riverDepth;
+                            }
+                            
+                            finalHeight = calculatedHeight - 1;
                         }
                         
-                        IntValues[x][z].SetInt(i, j, (height-1));
+                        IntValues[x][z].SetInt(i, j, finalHeight);
                     }
                 }
             }
