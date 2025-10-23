@@ -1,24 +1,19 @@
 using System;
-using SkiaSharp;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Vintagestory.API.Datastructures;
 
 namespace EarthMapCreator;
 
-public class HeightMap : DataMap
+public class HeightMap : DataMap<Rgb48>
 {
-    // 108
-    const int SeaFloor = 90;
     const int SeaLevel = 110;
-
-    private const int MaxHeight = 250;
+    private const int MaxHeight = 180;
     const int HeightRange = MaxHeight - SeaLevel;
 
-    // assume for now that max vs height will always be 256
-    // sea level: 110
-    // 256 - 110 = range of 146 above sea level
     public HeightMap(string filePath, string landcoverFile, RiverMap rivers) : base(filePath)
     {
-        SKBitmap landcoverBmp = LoadBitmap(landcoverFile);
+        Image<Rgb24> landcoverBmp = LoadBitmap<Rgb24>(landcoverFile);
         
         var watch = System.Diagnostics.Stopwatch.StartNew();
         int xRegions = Bitmap.Width / 512;
@@ -40,29 +35,26 @@ public class HeightMap : DataMap
                     {
                         int posX = x * 512 + i;
                         int posZ = z * 512 + j;
-                        SKColor lcPixel = landcoverBmp.GetPixel(posX, posZ);
-                        SKColor heightPixel = Bitmap.GetPixel(posX, posZ);
-                        lcPixel.ToHsv(out _, out _, out float lcBrightness);
-                        heightPixel.ToHsv(out _, out _, out float heightBrightness);
+                        Rgb24 lcPixel = landcoverBmp[posX, posZ];
+                        Rgb48 heightPixel = Bitmap[posX, posZ];
 
-                        bool isLand = lcBrightness >= 50.0;
-                        int height = SeaFloor;
+                        bool isLand = lcPixel.R > 0;
+                        int height = 0; // Default to 0 for ocean areas
 
                         if (isLand)
                         {
-                            height = SeaLevel + (int) Math.Floor(HeightRange * (heightBrightness / 100.0));
-                        }
-
-                        // rivers/lakes
-                        int riverHere = rivers.IntValues[x][z].GetInt(i, j);
-                        if (riverHere > 0 && isLand)
-                        {
-                            int diffFromMin = riverHere - rivers.Min;
-                            int maxDiff = 255 - rivers.Min;
-                            
-                            float riverNormalized = (float) diffFromMin / maxDiff;
-                            int riverDepth = (int) (EarthMapCreator.config.RiverDepth * riverNormalized) + 1;
-                            height = height - riverDepth;
+                            int riverHere = rivers.IntValues[x][z].GetInt(i, j);
+                            if (riverHere > 0)
+                            {
+                                // Set river surface height to sea level
+                                height = SeaLevel;
+                            }
+                            else
+                            {
+                                float heightFraction = heightPixel.R / 65535.0f;
+                                height = SeaLevel + (int)Math.Round(HeightRange * heightFraction);
+                                height = Math.Max(SeaLevel, height);
+                            }
                         }
 
                         IntValues[x][z].SetInt(i, j, height);

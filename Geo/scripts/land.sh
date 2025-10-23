@@ -31,7 +31,7 @@ if [[ ! -f land-polygons-complete-4326.zip ]]; then
 fi &&
 if [[ ! -f land-polygons-complete-4326.zip ]]; then
   log "CRITICAL ERROR: OSM Land Polygons download failed, please retry again later."
-  abort_duetoerror_cleanup 8
+  abort_duetoerror_cleanup $VSERR_NO_OSMLANDPOLYGONS
 fi
 fi
 
@@ -52,12 +52,25 @@ gdal_edit.py -unsetnodata $WORK_DIR/land_osm_mask.tif
 log "Getting river data"
 cd $OSM_DIR
 get_local_dataset ne_10m_rivers_lake_centerlines.zip .
+if [[ ! -f ne_10m_rivers_lake_centerlines.zip ]]; then
+  log "Rivers/lakes not found locally, Downloading..."
+  url="https://huggingface.co/spaces/tlm9201/vs-earth-map-mod/resolve/main/ne_10m_rivers_lake_centerlines.zip"
+  download_file $url ne_10m_rivers_lake_centerlines.zip
+fi
+
+if [[ ! -f ne_10m_rivers_lake_centerlines.zip ]]; then
+  log "CRITICAL ERROR: Failed to download natural earth rivers/lakes"
+  abort_duetoerror_cleanup $VSERR_NO_NE_LAKERIVERCENTERLINES
+fi
+
+save_dataset_locally ne_10m_rivers_lake_centerlines.zip
 unzip ne_10m_rivers_lake_centerlines.zip
 
 log "Processing rivers"
 osmconvert $OSM_DIR/ne_10m_rivers_lake_centerlines.osm --drop-author -b=$OSM_LON_MIN,$OSM_LAT_MIN,$OSM_LON_MAX,$OSM_LAT_MAX -o=crop_rivers.osm
 waterways_drop="intermittent=yes"
 
+<<<<<<< HEAD
 # --- Step 1: Define river_width ---
 log "Calculating river width..."
 river_width=$(echo "$major_river_width/$FINAL_RES" | bc -l)
@@ -85,16 +98,47 @@ log "Rasterizing rivers to the final mask..."
 cp $WORK_DIR/dummy.tif $WORK_DIR/rivers.tif
 gdal_rasterize -l buffered_rivers -at -burn 255 -burn 255 -burn 255 -burn 255 $WORK_DIR/crop_rivers.gpkg $WORK_DIR/rivers.tif
 gdal_edit.py -unsetnodata $WORK_DIR/rivers.tif
+=======
+#major_river_names=$(awk 'NF && !/^#/ {sub(/ \(.*$/, ""); print}' $MAIN_DIR/config/$major_rivers_file | awk '!seen[$0]++' | awk '{gsub(/ /, "\\ "); printf "name=%s or ", $0}' | sed 's/ or $//')
+#major_waterways_filter=$(awk '{print "name=" $0}' $MAIN_DIR/config/$major_rivers_file | paste -s -d '|' | sed 's/|/ or /g')
+major_waterways_filter=$(awk '{gsub(/ /, "\\ "); print "name=" $0}' $MAIN_DIR/config/$major_rivers_file | paste -s -d '|' | sed 's/|/ or /g')
+echo "Major waterways filter: $major_waterways_filter"
+
+cp $WORK_DIR/dummy.tif $WORK_DIR/rivers.tif
+
+river_width=$(echo "$major_river_width/$FINAL_RES" | bc -l)
+
+osmfilter crop_rivers.osm --keep="$major_waterways_filter" -o=$OSM_DIR/crop_rivers_filtered.osm 
+
+ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX -dialect SQLite -sql "SELECT ST_Buffer(geometry,$river_width) FROM lines" -f GPKG $WORK_DIR/crop_rivers.gpkg $OSM_DIR/crop_rivers_filtered.osm
+
+gdal_rasterize -l SELECT -at -burn 255 $WORK_DIR/crop_rivers.gpkg $WORK_DIR/rivers.tif
+>>>>>>> c512d85b969d3abd98b3f70b1983700ae782f139
 
 log "Done with rivers"
 
 cd $OSM_DIR
 log "Getting lake data"
 get_local_dataset ne_10m_lakes.zip .
+
+if [[ ! -f ne_10m_lakes.zip ]]; then
+  log "Lakes not found, downloading"
+  url="https://naciscdn.org/naturalearth/10m/physical/ne_10m_lakes.zip"
+  download_file $url ne_10m_lakes.zip
+fi
+
+if [[ ! -f ne_10m_lakes.zip ]]; then
+  log "CRITICAL ERROR: failed to download natural earth lakes"
+  abort_duetoerror_cleanup $VSERR_NO_NE_LAKES
+fi
+
+save_dataset_locally ne_10m_lakes.zip
 unzip ne_10m_lakes.zip
 
 log "Processing lakes"
 ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX -f GPKG $WORK_DIR/crop_lakes.gpkg $OSM_DIR/ne_10m_lakes.shp ne_10m_lakes
+
+gdal_rasterize -l ne_10m_lakes -burn 255 $WORK_DIR/crop_lakes.gpkg $WORK_DIR/rivers.tif
 
 log "Done with lakes"
 log "DONE processing osm data"

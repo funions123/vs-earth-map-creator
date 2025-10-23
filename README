@@ -8,7 +8,6 @@ dotnet 8
 vintage story
 gdal
 python3
-imagemagick
 
 Directories
 -------------------
@@ -21,7 +20,7 @@ Usage
 -------------------
 under Geo/ run pip install -r requirements.txt
 then, set the desired map resolution and long/lat bounds under Geo/scripts/config_map.sh
-run launch.sh from the Geo directory (sh ./scripts/launch.sh)
+run launch.sh
 some bitmap files will be output to work/build
 
 the vintage story mod takes these bitmap files and overrides the vanilla generation.
@@ -41,6 +40,7 @@ Limitations/TODO
 - Much more data is missing that can be applied to VS (i.e. rock strata, ores)
 - Vintage Story - map resolutions/padding are hardcoded on the client
 - Alot of values are hardcoded
+See ./TODO for a more comprehensive list
 
 Data Used/Acknowledgments
 -------------------

@@ -1,4 +1,5 @@
 RESIZE_MAP=1
+<<<<<<< HEAD
 FINAL_WIDTH=10240
 FINAL_LENGTH=10240
 
@@ -13,12 +14,16 @@ LON_MAX_4326="40.0"
 #LAT_MAX_4326="50.627996"
 #LON_MIN_4326="-90.084961"
 #LON_MAX_4326="-75.350586"
+=======
+FINAL_WIDTH=1024
+FINAL_LENGTH=1024
+>>>>>>> c512d85b969d3abd98b3f70b1983700ae782f139
 
 # Ireland
-#LAT_MIN_4326="51.013755"
-#LAT_MAX_4326="55.627996"
-#LON_MIN_4326="-12.084961"
-#LON_MAX_4326="-4.350586"
+LAT_MIN_4326="51.013755"
+LAT_MAX_4326="55.627996"
+LON_MIN_4326="-12.084961"
+LON_MAX_4326="-4.350586"
 
 #Crimea
 #LAT_MIN_4326="41.112469"
@@ -70,6 +75,7 @@ bathymetry="1" # TODO
 download_datasets_locally="1"
 force_local_datasets_update="0"
 
+<<<<<<< HEAD
 # --- Custom Bathymetry Scaling ---
 # Set to 1 to enable custom scaling, 0 to use the default full range (0-255).
 ENABLE_BATHY_CUSTOM_SCALE=1
@@ -80,5 +86,7 @@ BATHY_SCALE_SEALEVEL=92
 # Vintage story maximum ocean depth (default 50?)
 BATHY_SCALE_MAXDEPTH=50
 
+=======
+>>>>>>> c512d85b969d3abd98b3f70b1983700ae782f139
 # in pixels (blocks)
 major_river_width=1

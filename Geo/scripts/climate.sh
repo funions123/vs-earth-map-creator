@@ -5,10 +5,21 @@ CLIMATE_DIR="$WORK_DIR/climate"
 mkdir -p $CLIMATE_DIR
 
 log "Getting climate data"
-
+cd $CLIMATE_DIR
 get_local_dataset wc2.1_30s_prec_tavg.zip $CLIMATE_DIR/.
 
-cd $CLIMATE_DIR
+if [[ ! -f wc2.1_30s_prec_tavg.zip ]]; then
+  log "climate data not found locally, downloading"
+  url="https://huggingface.co/spaces/tlm9201/vs-earth-map-mod/resolve/main/wc2.1_30s_prec_tavg.zip"
+  download_file $url wc2.1_30s_prec_tavg.zip
+fi
+
+if [[ ! -f wc2.1_30s_prec_tavg.zip ]]; then
+  log "CRITICAL ERROR: failed to download climate data"
+  abort_duetoerror_cleanup $VSERR_NO_CLIMATE
+fi
+
+save_dataset_locally wc2.1_30s_prec_tavg.zip
 unzip wc2.1_30s_prec_tavg.zip
 
 log "Processing climate data"
@@ -19,8 +30,9 @@ gdalwarp -multi -co NUM_THREADS=ALL_CPUS -wo NUM_THREADS=ALL_CPUS --config GDAL_
 
 gdalwarp -multi -co NUM_THREADS=ALL_CPUS -wo NUM_THREADS=ALL_CPUS --config GDAL_CACHEMAX $GDAL_CACHEMAX -wm $GDAL_WM -te $LON_MIN_FINAL $LAT_MIN_FINAL $LON_MAX_FINAL $LAT_MAX_FINAL $output_projection -r cubicspline -te_srs $bbox_srs -co COMPRESS=lzw -co predictor=2 -co BIGTIFF=YES -ot Float32 wc2.1_30s_tavg_01.tif crop_tavg.tif
 
-log "raster metadata clean step"
+log "Merging"
 
+<<<<<<< HEAD
 gdal_translate crop_prec.tif crop_prec_fixed.tif -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES
 gdal_translate crop_tavg.tif crop_tavg_fixed.tif -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES
 
@@ -31,6 +43,10 @@ gdal raster fill-nodata --config CPL_LOG /dev/null --strategy nearest --max-dist
 
 log "merging step"
 # --- Piecewise Scaling Parameters for Precipitation ---
+=======
+gdal raster fill-nodata --strategy nearest --max-distance 500 crop_prec.tif crop_prec_c.tif
+gdal raster fill-nodata --strategy nearest --max-distance 500 crop_tavg.tif crop_tavg_c.tif
+>>>>>>> c512d85b969d3abd98b3f70b1983700ae782f139
 
 # The raw TIF value where the scaling rate changes.
 threshold=30

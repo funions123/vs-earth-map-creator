@@ -1,11 +1,11 @@
 namespace EarthMapCreator;
 
 public class Config {
-    public int MapWidthBlocks = 1024;
-    public int MapHeightBlocks = 512;
+    public int MapWidthBlocks = 10240;
+    public int MapHeightBlocks = 10240;
     
     // rivers
-    public int RiverDepth = 20;
+    public int RiverDepth = 7;
     
     // gen modding
     public byte PrecipitationAdd = 0;
@@ -14,5 +14,5 @@ public class Config {
     
     public double PrecipitationMulti = 1.0;
     public double TemperatureMulti = 1.0;
-    public double ForestMulti = 1.0;
+    public double ForestMulti = 4.0;
 }
