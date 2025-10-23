@@ -42,7 +42,10 @@ eval $GDAL_TRANSLATE -ot Byte land_osm_mask.tif $BUILD_DIR/landmask.png
 echo "Translating climate, tree, and river maps..."
 eval $GDAL_TRANSLATE -ot Byte climate.tif $BUILD_DIR/climate.png
 eval $GDAL_TRANSLATE -ot Byte tree.tif $BUILD_DIR/tree.png
-eval $GDAL_TRANSLATE -ot Byte rivers.tif $WORK_DIR/river.png
-magick $WORK_DIR/river.png -channel RGB -threshold 90% -blur 0x5 -posterize 10 -level 0%,100%,1.0 $BUILD_DIR/river.png
+eval $GDAL_TRANSLATE -b 1 -ot Byte rivers.tif $BUILD_DIR/river.png
+# default command
+magick $BUILD_DIR/river.png -background black -alpha remove -alpha off -threshold 90% -blur 0x5 -posterize 10 -level 0%,100%,1.0 $BUILD_DIR/river.png
+# erode command for thinnening rivers
+# magick $BUILD_DIR/river.png -background black -alpha remove -alpha off -morphology Erode Diamond:3 -threshold 90% -blur 0x5 -posterize 10 -level 0%,100%,1.0 $BUILD_DIR/river.png
 
 echo "All translations complete."

@@ -30,23 +30,34 @@ gdal raster fill-nodata --config CPL_LOG /dev/null --strategy nearest --max-dist
 gdal raster fill-nodata --config CPL_LOG /dev/null --strategy nearest --max-distance 500 crop_tavg_fixed.tif crop_tavg_c.tif
 
 log "merging step"
+# --- Piecewise Scaling Parameters for Precipitation ---
 
-gdal_translate crop_prec_c.tif -scale 0 255 0 255 -ot Byte crop_prec_f_0.tif
+# The raw TIF value where the scaling rate changes.
+threshold=30
+
+# The maximum raw TIF value expected in your data (e.g., 288).
+# This is used to scale the values *above* the threshold.
+original_max=288
+
+# The desired output value (0-255) at the threshold.
+mid_output_val=80
+
+# The maximum value of the output raster (typically 255 for 8-bit).
+output_max=200
+
+# --- gdal_calc implementation ---
+
+# The formula is split into two parts:
+# 1. (A <= $threshold) * (...): Scales values from [0, threshold] to [0, mid_output_val].
+# 2. (A > $threshold) * (...): Scales values from (threshold, original_max] to (mid_output_val, output_max].
+gdal_calc.py -A crop_prec_c.tif --outfile=crop_prec_f.tif \
+    --co="COMPRESS=LZW" --co="TILED=YES" --co="BIGTIFF=YES" --type='Byte' \
+    --calc="((A <= $threshold) * (A * ($mid_output_val / $threshold))) + \
+            ((A > $threshold) * ($mid_output_val + ((A - $threshold) / ($original_max - $threshold)) * ($output_max - $mid_output_val)))"
+			
 gdal_translate crop_tavg_c.tif -scale -46.1 34.1 0 255 -ot Byte crop_tavg_f.tif
 
-# normalize for vs fertility
-# low is what we keep intact (<10 typically is desert)
-# high is what we normalize values between low/high to
-# ~25% rain (64/255) is where sand starts to format
-# 100 is a good general value for infertile land
-# vs doesnt really have a concept of sandy soil, so
-# parts of the world just look like a desert even though they
-# should look more like a steppe
-c_normal_low=10
-c_normal_high=100
-gdal_calc.py -A crop_prec_f_0.tif --co="COMPRESS=lzw" --co="predictor=2" --NoDataValue=-32768 --co="BIGTIFF=YES" --format="gtiff" --calc="(A*(A<$c_normal_low)) + (A*(A>$c_normal_high)) + ((A>$c_normal_low)*(A<=$c_normal_high)*$c_normal_high)" --outfile="crop_prec_f.tif"
-
-gdal_create -bands 1 -burn 0 -if crop_prec_f.tif dummy_b.tif
+gdal_create -bands 1 -burn 0 -if crop_tavg_f.tif dummy_b.tif
 gdal_merge.py -separate -o $WORK_DIR/climate.tif -co PHOTOMETRIC=RGB ./crop_tavg_f.tif ./crop_prec_f.tif ./dummy_b.tif
 
 log "Climate data DONE" 

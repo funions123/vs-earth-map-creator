@@ -58,46 +58,33 @@ log "Processing rivers"
 osmconvert $OSM_DIR/ne_10m_rivers_lake_centerlines.osm --drop-author -b=$OSM_LON_MIN,$OSM_LAT_MIN,$OSM_LON_MAX,$OSM_LAT_MAX -o=crop_rivers.osm
 waterways_drop="intermittent=yes"
 
-# --- DIAGNOSTIC 1: Check if the source file has river data ---
-way_count=$(grep -c "<way" $OSM_DIR/crop_rivers.osm)
-log "DIAGNOSTIC: The unfiltered crop_rivers.osm file contains $way_count river/way features."
-
 # --- Step 1: Define river_width ---
 log "Calculating river width..."
 river_width=$(echo "$major_river_width/$FINAL_RES" | bc -l)
-
-# --- DIAGNOSTIC 2: Check the generated SQL filter string ---
-log "DIAGNOSTIC: The generated SQL river list is:"
-echo "$river_list"
-if [[ -z "$river_list" ]]; then
-    log "DIAGNOSTIC: WARNING! The river list is empty. Check your major_rivers.txt file."
-fi
 
 # --- Step 2: Build the SQL filter list ---
 log "Building SQL filter for major rivers..."
 river_list=$(awk '{printf "\047%s\047,", $0}' $MAIN_DIR/config/major_rivers.txt | sed 's/,$//')
 
-# --- DIAGNOSTIC 3: List all river names found in the source data ---
-log "DIAGNOSTIC: Listing all available river names from source file (for comparison):"
-ogrinfo -ro -al -sql "SELECT name FROM lines" $OSM_DIR/crop_rivers.osm | grep "name (String)" | sort | uniq
-log "------------------------------------------------------------------"
-
-# --- Step 3: Filter and expand rivers in a single command ---
-log "Filtering and expanding rivers using ogr2ogr..."
+# --- Step 3a: Filter rivers into an intermediate file (without buffering) ---
+log "Filtering rivers into an intermediate GeoPackage..."
 ogr2ogr -clipsrc $OSM_LON_MIN $OSM_LAT_MIN $OSM_LON_MAX $OSM_LAT_MAX \
     -dialect SQLite \
-    -sql "SELECT ST_Buffer(geometry, $river_width) FROM lines WHERE name IN ($river_list)" \
-    -f GPKG $WORK_DIR/crop_rivers.gpkg $OSM_DIR/crop_rivers.osm
-	
-# --- DIAGNOSTIC 4: Check if the filtering produced any results ---
-log "DIAGNOSTIC: Checking the contents of the final GeoPackage before rasterizing..."
-ogrinfo -so -al $WORK_DIR/crop_rivers.gpkg
-log "------------------------------------------------------------------"
+    -sql "SELECT geometry FROM lines WHERE name IN ($river_list) UNION ALL SELECT geometry FROM multilinestrings WHERE name IN ($river_list)" \
+    -f GPKG -nln rivers $WORK_DIR/filtered_rivers.gpkg $OSM_DIR/crop_rivers.osm
+
+# --- Step 3b: Buffer the filtered rivers from the intermediate file ---
+log "Buffering (expanding) the filtered rivers..."
+ogr2ogr \
+    -dialect SQLite \
+    -sql "SELECT ST_Buffer(geometry, $river_width) FROM rivers" \
+    -f GPKG -nln buffered_rivers $WORK_DIR/crop_rivers.gpkg $WORK_DIR/filtered_rivers.gpkg
 
 # --- Step 4: Rasterize the result ---
 log "Rasterizing rivers to the final mask..."
 cp $WORK_DIR/dummy.tif $WORK_DIR/rivers.tif
-gdal_rasterize -l SELECT -at -burn 255 $WORK_DIR/crop_rivers.gpkg $WORK_DIR/rivers.tif
+gdal_rasterize -l buffered_rivers -at -burn 255 -burn 255 -burn 255 -burn 255 $WORK_DIR/crop_rivers.gpkg $WORK_DIR/rivers.tif
+gdal_edit.py -unsetnodata $WORK_DIR/rivers.tif
 
 log "Done with rivers"
 
